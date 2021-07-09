@@ -484,6 +484,30 @@ class Shrine
           shrine_class.map_derivative(derivatives, **options, &block)
         end
 
+        # Support for proper marshalling
+        #
+        # It's impossible to marshal any models with this plugin
+        # as we can't marshal `Mutex` reliably.
+        def marshal_dump
+          instance_variables.reject do |name|
+            name == :@derivatives_mutex
+          end.map do |name|
+            [name, instance_variable_get(name)]
+          end
+        end
+
+        # Load marshalled instance
+        #
+        # We reload all instance variables, and re-create
+        # mutex. Otherwise the object won't function properly
+        def marshal_load(instance_variables)
+          instance_variables.each do |name, value|
+            instance_variable_set(name, value)
+          end
+
+          @derivatives_mutex = Mutex.new
+        end
+
         private
 
         # Calls the derivatives processor with the source file and options.
